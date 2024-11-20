@@ -4,13 +4,92 @@
 #include <windows.h>
 #include "Md5hash.h"
 
-struct ArchivoHasheado {
-    std::wstring nombre;
+// Estructura para representar un nodo en la lista enlazada
+struct Nodo {
     std::string hash;
+    std::wstring nombreOriginal; // Nombre del archivo original
+    std::wstring ubicacion;      // Ubicación del archivo
+    bool repetido;               // Indicador para hashes repetidos
+    Nodo* siguiente;
 };
 
-// Función para listar los archivos y calcular sus hashes recursivamente
-void listar_y_hashear(const std::wstring& directorio, std::vector<ArchivoHasheado>& resultado, int nivel = 0) {
+// Clase ListaEnlazada para manejar los nodos y detectar duplicados
+class ListaEnlazada {
+private:
+    Nodo* cabeza;
+
+public:
+    ListaEnlazada() : cabeza(nullptr) {}
+
+    // Agregar un nuevo hash a la lista
+    void agregar(const std::string& hash, const std::wstring& nombre, const std::wstring& ubicacion) {
+        bool repetido = false;
+        Nodo* actual = cabeza;
+
+        // Verificar si el hash ya existe
+        while (actual) {
+            if (actual->hash == hash) {
+                repetido = true;
+                break;
+            }
+            actual = actual->siguiente;
+        }
+
+        // Agregar el nuevo nodo con la información
+        Nodo* nuevo = new Nodo{ hash, nombre, ubicacion, repetido, cabeza };
+        cabeza = nuevo;
+    }
+
+    // Mostrar los hashes en la lista sin los duplicados, solo mostrando el nombre y ubicación si es duplicado
+    void mostrar() {
+        Nodo* actual = cabeza;
+        std::cout << "\nLista de hashes MD5:\n";
+        while (actual) {
+            if (actual->repetido) {
+                // Solo mostramos los duplicados con nombre y ubicación
+                std::wcout << L"Archivo: " << actual->nombreOriginal
+                    << L" | Ubicacion: " << actual->ubicacion
+                    << L" | Hash: " << actual->hash.c_str() << L" (REPETIDO)" << std::endl;
+            }
+            else {
+                // Si no es duplicado, solo mostramos el hash
+                std::cout << "Hash: " << actual->hash.c_str() << std::endl;
+            }
+            actual = actual->siguiente;
+        }
+    }
+
+    // Mostrar el resumen de archivos duplicados (solo los nombres)
+    void mostrarDuplicados() {
+        Nodo* actual = cabeza;
+        std::cout << "\nResumen de archivos duplicados:\n";
+        bool hayDuplicados = false;
+        while (actual) {
+            if (actual->repetido) {
+                hayDuplicados = true;
+                std::wcout << L"Archivo duplicado: " << actual->nombreOriginal
+                    << L" | Ubicacion: " << actual->ubicacion
+                    << L" | Hash: " << actual->hash.c_str() << L"\n";
+            }
+            actual = actual->siguiente;
+        }
+        if (!hayDuplicados) {
+            std::cout << "No se encontraron archivos duplicados.\n";
+        }
+    }
+
+    // Liberar memoria al destruir la lista
+    ~ListaEnlazada() {
+        while (cabeza) {
+            Nodo* temp = cabeza;
+            cabeza = cabeza->siguiente;
+            delete temp;
+        }
+    }
+};
+
+// Función para listar archivos, calcular hashes y detectar duplicados
+void listar_y_hashear(const std::wstring& directorio, ListaEnlazada& lista) {
     std::wstring rutaBusqueda = directorio + L"\\*";
 
     WIN32_FIND_DATAW datosArchivo;
@@ -31,7 +110,7 @@ void listar_y_hashear(const std::wstring& directorio, std::vector<ArchivoHashead
 
         // Comprobar si es un directorio
         if (datosArchivo.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-            listar_y_hashear(directorio + L"\\" + nombreArchivo, resultado, nivel + 1);
+            listar_y_hashear(directorio + L"\\" + nombreArchivo, lista);
         }
         else {
             // Convertir el nombre del archivo a una cadena estándar
@@ -41,8 +120,8 @@ void listar_y_hashear(const std::wstring& directorio, std::vector<ArchivoHashead
             std::vector<uint8_t> entrada(nombreUTF8.begin(), nombreUTF8.end());
             std::string hash = md5(entrada);
 
-            // Agregar el nombre y el hash a la lista de resultados
-            resultado.push_back({ nombreArchivo, hash });
+            // Agregar el hash, nombre y ubicación a la lista
+            lista.agregar(hash, nombreArchivo, directorio);
         }
 
     } while (FindNextFileW(hFind, &datosArchivo) != 0);
@@ -52,19 +131,19 @@ void listar_y_hashear(const std::wstring& directorio, std::vector<ArchivoHashead
 
 int main() {
     std::wstring rutaInicial;
-    std::wcout << L"Ingrese la ubicación de la carpeta a hashear: ";
+    std::wcout << L"Ingrese la ubicacion de la carpeta a hashear: ";
     std::getline(std::wcin, rutaInicial);
 
-    std::vector<ArchivoHasheado> listaHashes;
+    ListaEnlazada listaHashes;
 
     // Llamar a la función para listar y calcular hashes
     listar_y_hashear(rutaInicial, listaHashes);
 
-    // Mostrar resultados
-    std::wcout << L"\nResultados del hash:\n";
-    for (const auto& archivo : listaHashes) {
-        std::wcout << L"Archivo: " << archivo.nombre << L" | MD5: " << archivo.hash.c_str() << L'\n';
-    }
+    // Mostrar la lista de hashes sin los duplicados, y mostrar solo nombre y ubicación cuando sean duplicados
+    listaHashes.mostrar();
+
+    // Mostrar el resumen de duplicados (solo los nombres)
+    listaHashes.mostrarDuplicados();
 
     return 0;
 }
