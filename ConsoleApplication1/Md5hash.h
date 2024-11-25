@@ -1,8 +1,7 @@
-#pragma once
 #include <iostream>
 #include <vector>
 #include <sstream>
-#include <iomanip>
+#include <iomanip>  
 
 
 
@@ -84,7 +83,7 @@ void Bloque(const uint8_t* bloque) {
             g = i;
         }
         else if (i < 32) {
-            F = (d & b) | (~d & c);
+            F = (d & b) | (~d & c);                         //TRANSFORMACION Y COMBINACION
             g = (5 * i + 1) % 16;
         }
         else if (i < 48) {
@@ -97,7 +96,7 @@ void Bloque(const uint8_t* bloque) {
         }
 
         // Actualizamos los valores de a, b, c y d
-        F = F + a + K[i] + M[g];
+        F = F + a + K[i] + M[g]; //perdida de datos solo si sobrepasa el tamaño de la variable
         a = d;
         d = c;
         c = b;
@@ -108,26 +107,29 @@ void Bloque(const uint8_t* bloque) {
     A += a;
     B += b;
     C += c;
-    D += d;
+    D += d; // se genera un desbordamiento de bits por lo tanto tambien hay perdida
 }
 
-// Funcion principal que aplica MD5 a un mensaje de entrada y retorna el hash final.
+// Funcion principal que aplica MD5 a un mensaje de entrada y retorna el hash final
 std::string md5(const std::vector<uint8_t>& input) {
-    // Llamamos a la funcion padMensaje para agregar el relleno necesario al mensaje original,
-    // asegurando que la longitud sea un multiplo de 512 bits.
-    std::vector<uint8_t> paddedMensaje = padMensaje(input);
 
-    // Bucle for que procesa el mensaje relleno en bloques de 512 bits (64 bytes).
-    // Se recorre el mensaje en incrementos de 64 bytes para procesar cada bloque.
+    //Inicializar las variables de estado
+    A = 0x67452301;
+    B = 0xefcdab89;
+    C = 0x98badcfe;
+    D = 0x10325476;
+
+    std::vector<uint8_t> paddedMensaje = padMensaje(input);
+     
+    /* Bucle for que procesa el mensaje relleno en bloques de 512 bits(64 bytes).
+    Se recorre el mensaje en incrementos de 64 bytes para procesar cada bloque. */
     for (size_t i = 0; i < paddedMensaje.size(); i += 64) {
-        // Llamamos a la funcion Bloque para procesar el bloque de 64 bytes
-        // a partir de la posicion actual i, que actualiza los valores de A, B, C y D.
         Bloque(&paddedMensaje[i]);
     }
 
     std::ostringstream resultado;
-    // Configuramos el flujo para que convierta los valores en formato hexadecimal
-    // y que llene con ceros ('0') a la izquierda cuando sea necesario.
+    /* Configuramos el flujo para que convierta los valores en formato hexadecimal
+     y que llene con ceros (0) a la izquierda cuando sea necesario. */
     resultado << std::hex << std::setfill('0');
 
     // Este bucle recorre las variables de estado A, B, C y D que contienen el resultado final del hash.

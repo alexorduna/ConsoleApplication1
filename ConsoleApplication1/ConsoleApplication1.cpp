@@ -3,146 +3,198 @@
 #include <string>
 #include <windows.h>
 #include "Md5hash.h"
+using namespace std;
 
 // Estructura para representar un nodo en la lista enlazada
 struct Nodo {
-    std::string hash;
-    std::wstring nombreOriginal; // Nombre del archivo original
-    std::wstring ubicacion;      // Ubicación del archivo
-    bool repetido;               // Indicador para hashes repetidos
-    Nodo* siguiente;
+
+    string Nombreh;
+    string Tamanioh;
+    wstring NombreA;
+    wstring ubicacion;
+    uint64_t tamanio;
+    bool DuplicadoN;
+    bool DuplicadoT;
+    Nodo* nodo;
+
 };
 
-// Clase ListaEnlazada para manejar los nodos y detectar duplicados
+// Clase para manejar los nodos y detectar duplicados
 class ListaEnlazada {
 private:
+
     Nodo* cabeza;
 
 public:
+
     ListaEnlazada() : cabeza(nullptr) {}
 
-    // Agregar un nuevo hash a la lista
-    void agregar(const std::string& hash, const std::wstring& nombre, const std::wstring& ubicacion) {
-        bool repetido = false;
-        Nodo* actual = cabeza;
+    // Agregar un nuevo nodo a la lista
+    void agregar(const string& Nombreh, const string& Tamanioh,
 
-        // Verificar si el hash ya existe
-        while (actual) {
-            if (actual->hash == hash) {
-                repetido = true;
-                break;
+        const wstring& nombre, const wstring& ubicacion, uint64_t tamanio) {
+        bool DuplicadoN = false;
+        bool DuplicadoT = false;
+        Nodo* a = cabeza;
+
+        // Verificar si ya existen hashes repetidos
+        while (a) {
+            if (a->Nombreh == Nombreh) {
+                DuplicadoN = true;
             }
-            actual = actual->siguiente;
+            if (a->Tamanioh == Tamanioh) {
+                DuplicadoT = true;
+            }
+            a = a->nodo;
         }
 
-        // Agregar el nuevo nodo con la información
-        Nodo* nuevo = new Nodo{ hash, nombre, ubicacion, repetido, cabeza };
+        // Agregar el nuevo nodo con la informacion
+        Nodo* nuevo = new Nodo{ Nombreh, Tamanioh, nombre, ubicacion, tamanio, DuplicadoN, DuplicadoT, cabeza };
         cabeza = nuevo;
     }
 
-    // Mostrar los hashes en la lista sin los duplicados, solo mostrando el nombre y ubicación si es duplicado
+    // Mostrar los hashes en la lista
     void mostrar() {
-        Nodo* actual = cabeza;
-        std::cout << "\nLista de hashes MD5:\n";
-        while (actual) {
-            if (actual->repetido) {
-                // Solo mostramos los duplicados con nombre y ubicación
-                std::wcout << L"Archivo: " << actual->nombreOriginal
-                    << L" | Ubicacion: " << actual->ubicacion
-                    << L" | Hash: " << actual->hash.c_str() << L" (REPETIDO)" << std::endl;
+
+        Nodo* a = cabeza;
+
+        cout << "\nLista de hashes:\n";
+
+        while (a) {
+
+            wcout << L"Archivo: " << a->NombreA << L"\n" << L" | Ubicacion: " << a->ubicacion << L"\n" << L" | Tamano: " << a->tamanio << L" bytes" << L"\n"
+                << L" | Hash Nombre: " << a->Nombreh.c_str() << L"\n" << L" | Hash Tamano: " << a->Tamanioh.c_str();
+
+            if (a->DuplicadoN || a->DuplicadoT) {
+                wcout << L" (duplicado)";
             }
-            else {
-                // Si no es duplicado, solo mostramos el hash
-                std::cout << "Hash: " << actual->hash.c_str() << std::endl;
-            }
-            actual = actual->siguiente;
+
+            wcout << endl;
+
+            a = a->nodo;
         }
     }
 
-    // Mostrar el resumen de archivos duplicados (solo los nombres)
+    // Mostrar el resumen de archivos duplicados
     void mostrarDuplicados() {
-        Nodo* actual = cabeza;
-        std::cout << "\nResumen de archivos duplicados:\n";
+        Nodo* a = cabeza;
+
+        cout << "\nResumen de archivos duplicados:\n";
+
         bool hayDuplicados = false;
-        while (actual) {
-            if (actual->repetido) {
+
+        while (a) {
+
+            if (a->DuplicadoN || a->DuplicadoT) {
                 hayDuplicados = true;
-                std::wcout << L"Archivo duplicado: " << actual->nombreOriginal
-                    << L" | Ubicacion: " << actual->ubicacion
-                    << L" | Hash: " << actual->hash.c_str() << L"\n";
+
+                wcout << L"Archivo: " << a->NombreA << L"\n" << L" | Ubicacion: " << a->ubicacion << L"\n" << L" | Tamano: " << a->tamanio << L" bytes" << L"\n"
+                    << L" | Hash Nombre: " << a->Nombreh.c_str() << L"\n" << L" | Hash Tamano: " << a->Tamanioh.c_str();
             }
-            actual = actual->siguiente;
+
+            a = a->nodo;
         }
+
         if (!hayDuplicados) {
-            std::cout << "No se encontraron archivos duplicados.\n";
+
+            cout << "No se encontraron archivos duplicados.\n";
         }
     }
 
     // Liberar memoria al destruir la lista
     ~ListaEnlazada() {
+
         while (cabeza) {
             Nodo* temp = cabeza;
-            cabeza = cabeza->siguiente;
+            cabeza = cabeza->nodo;
             delete temp;
         }
     }
 };
 
-// Función para listar archivos, calcular hashes y detectar duplicados
-void listar_y_hashear(const std::wstring& directorio, ListaEnlazada& lista) {
-    std::wstring rutaBusqueda = directorio + L"\\*";
+// Funcion para calcular el tamanio del archivo
+uint64_t getTamaniofile(const WIN32_FIND_DATAW& datosArchivo) {
 
-    WIN32_FIND_DATAW datosArchivo;
-    HANDLE hFind = FindFirstFileW(rutaBusqueda.c_str(), &datosArchivo);
+    LARGE_INTEGER tamanio;
+
+    tamanio.HighPart = datosArchivo.nFileSizeHigh;
+    tamanio.LowPart = datosArchivo.nFileSizeLow;
+
+    return static_cast<uint64_t>(tamanio.QuadPart);
+}
+
+// Funcion para listar archivos, calcular hashes y detectar duplicados
+void listar_y_hashear(const wstring& directorio, ListaEnlazada& lista) {
+
+    wstring ruta = directorio + L"\\*";
+    WIN32_FIND_DATAW datosFile;
+
+    HANDLE hFind = FindFirstFileW(ruta.c_str(), &datosFile);
 
     if (hFind == INVALID_HANDLE_VALUE) {
-        std::wcerr << L"Error al abrir el directorio: " << directorio << L'\n';
+
+        wcout << L"Error al abrir el directorio: " << directorio << L'\n';
         return;
     }
 
     do {
-        const std::wstring nombreArchivo = datosArchivo.cFileName;
+
+        const wstring nombreFile = datosFile.cFileName;
 
         // Ignorar directorios "." y ".."
-        if (nombreArchivo == L"." || nombreArchivo == L"..") {
+        if (nombreFile == L"." || nombreFile == L"..") {
             continue;
         }
 
         // Comprobar si es un directorio
-        if (datosArchivo.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-            listar_y_hashear(directorio + L"\\" + nombreArchivo, lista);
+        if (datosFile.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+
+            listar_y_hashear(directorio + L"\\" + nombreFile, lista);
         }
-        else {
-            // Convertir el nombre del archivo a una cadena estándar
-            std::string nombreUTF8(nombreArchivo.begin(), nombreArchivo.end());
+        else
+        {
+            // Calcular el tamanio del archivo
+            uint64_t tamanioFile = getTamaniofile(datosFile);
 
-            // Calcular el hash MD5 del nombre del archivo
-            std::vector<uint8_t> entrada(nombreUTF8.begin(), nombreUTF8.end());
-            std::string hash = md5(entrada);
+            // Convertir el nombre del archivo a una cadena estandar
+            string nombreUTF8(nombreFile.begin(), nombreFile.end());
 
-            // Agregar el hash, nombre y ubicación a la lista
-            lista.agregar(hash, nombreArchivo, directorio);
+            // Calcular hash para el nombre del archivo
+            vector<uint8_t> entradaNombre(nombreUTF8.begin(), nombreUTF8.end());
+            string Nombreh = md5(entradaNombre);
+
+            // Calcular hash para el tamanio del archivo
+            vector<uint8_t> entradaTamano(8); // Crear un vector de 8 bytes (64 bits) 
+            for (size_t i = 0; i < 8; ++i) {
+
+                entradaTamano[i] = (tamanioFile >> (i * 8)) & 0xFF; // Extraer byte por byte 
+            }
+            string Tamanioh = md5(entradaTamano);
+
+
+            // Agregar los hashes, nombre, ubicacion y tamanio a la lista
+            lista.agregar(Nombreh, Tamanioh, nombreFile, directorio, tamanioFile);
         }
 
-    } while (FindNextFileW(hFind, &datosArchivo) != 0);
+    }
+
+    while (FindNextFileW(hFind, &datosFile) != 0);
 
     FindClose(hFind);
 }
 
 int main() {
-    std::wstring rutaInicial;
-    std::wcout << L"Ingrese la ubicacion de la carpeta a hashear: ";
-    std::getline(std::wcin, rutaInicial);
+
+    wstring rutaInicial;
+    wcout << L"Ingrese la ubicacion de la carpeta a hashear: ";
+    getline(wcin, rutaInicial);
 
     ListaEnlazada listaHashes;
 
-    // Llamar a la función para listar y calcular hashes
     listar_y_hashear(rutaInicial, listaHashes);
 
-    // Mostrar la lista de hashes sin los duplicados, y mostrar solo nombre y ubicación cuando sean duplicados
     listaHashes.mostrar();
 
-    // Mostrar el resumen de duplicados (solo los nombres)
     listaHashes.mostrarDuplicados();
 
     return 0;
