@@ -7,7 +7,6 @@
 #include "Md5hash.h"
 #include <SFML/Graphics.hpp>
 #include <SFML/Window.hpp>
-#include <algorithm>
 #include <map>
 using namespace std;
 
@@ -54,7 +53,7 @@ struct Nodo {
     string Nombreh;
     string Tamanioh;
     wstring NombreA;
-    wstring NombreOriginal; // Guardamos también el nombre normalizado
+    wstring NombreOriginal;
     wstring ubicacion;
     uint64_t tamanio;
     bool esDuplicado;
@@ -77,11 +76,17 @@ public:
         // Normalizar el nombre
         wstring nombreNormalizado = normalizarNombre(nombreArchivo);
 
-        // Convertir el nombre normalizado a UTF-8 para el hash
-        string nombreUTF8(nombreNormalizado.begin(), nombreNormalizado.end());
+        // Convertir nombre normalizado a string para hash
+        string nombreUTF8;
+        for (size_t i = 0; i < nombreNormalizado.length(); ++i) {
+            nombreUTF8 += (char)nombreNormalizado[i];
+        }
 
         // Calcular hash del nombre normalizado
-        vector<uint8_t> entradaNombre(nombreUTF8.begin(), nombreUTF8.end());
+        vector<uint8_t> entradaNombre;
+        for (size_t i = 0; i < nombreUTF8.length(); ++i) {
+            entradaNombre.push_back((uint8_t)nombreUTF8[i]);
+        }
         string Nombreh = md5(entradaNombre);
 
         // Calcular hash del tamaño
@@ -96,20 +101,16 @@ public:
             ubicacion, tamanio, cabeza);
         cabeza = nuevo;
 
-        // Verificar duplicados
+        // Agregar al grupo por tamaño
         gruposPorTamanio[Tamanioh].push_back(nuevo);
 
-        // Si hay más de un archivo en el grupo, verificar duplicados
-        if (gruposPorTamanio[Tamanioh].size() > 1) {
-            vector<Nodo*>& grupo = gruposPorTamanio[Tamanioh];
-
-            // Comparar el nuevo archivo con todos los del mismo tamaño
-            for (size_t i = 0; i < grupo.size() - 1; i++) {
-                // Si tienen el mismo hash de nombre normalizado
-                if (grupo[i]->Nombreh == nuevo->Nombreh) {
-                    grupo[i]->esDuplicado = true;
-                    nuevo->esDuplicado = true;
-                }
+        // Verificar duplicados
+        vector<Nodo*>& grupo = gruposPorTamanio[Tamanioh];
+        for (size_t i = 0; i < grupo.size() - 1; i++) {
+            // Si tienen el mismo hash de nombre normalizado
+            if (grupo[i]->Nombreh == nuevo->Nombreh) {
+                grupo[i]->esDuplicado = true;
+                nuevo->esDuplicado = true;
             }
         }
     }
@@ -140,19 +141,19 @@ public:
 
         for (const auto& grupo : gruposPorTamanio) {
             const vector<Nodo*>& archivos = grupo.second;
-
             bool grupoDuplicados = false;
-            for (const Nodo* archivo : archivos) {
-                if (archivo->esDuplicado) {
+
+            for (size_t i = 0; i < archivos.size(); ++i) {
+                if (archivos[i]->esDuplicado) {
                     if (!grupoDuplicados) {
                         cout << "\nGrupo de archivos duplicados:\n";
                         grupoDuplicados = true;
                         hayDuplicados = true;
                     }
-                    wcout << L"\nNombre Original: " << archivo->NombreA
-                        << L"\nNombre Normalizado: " << archivo->NombreOriginal
-                        << L"\nUbicacion: " << archivo->ubicacion
-                        << L"\nTamano: " << archivo->tamanio << L" bytes"
+                    wcout << L"\nNombre Original: " << archivos[i]->NombreA
+                        << L"\nNombre Normalizado: " << archivos[i]->NombreOriginal
+                        << L"\nUbicacion: " << archivos[i]->ubicacion
+                        << L"\nTamano: " << archivos[i]->tamanio << L" bytes"
                         << L"\n----------------------------------------\n";
                 }
             }
@@ -172,7 +173,6 @@ public:
     }
 };
 
-// La función getTamaniofile permanece igual
 uint64_t getTamaniofile(const WIN32_FIND_DATAW& datosArchivo) {
     LARGE_INTEGER tamanio;
     tamanio.HighPart = datosArchivo.nFileSizeHigh;
