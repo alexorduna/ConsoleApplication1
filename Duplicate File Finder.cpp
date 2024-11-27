@@ -30,9 +30,8 @@ public:
     ListaEnlazada() : cabeza(nullptr) {}
 
     // Agregar un nuevo nodo a la lista
-    void agregar(const string& Nombreh, const string& Tamanioh,
-
-        const wstring& nombre, const wstring& ubicacion, uint64_t tamanio) {
+    void agregar(const string& Nombreh, const string& Tamanioh, const wstring& nombre, const wstring& ubicacion, uint64_t tamanio) {
+        
         bool DuplicadoN = false;
         bool DuplicadoT = false;
         Nodo* a = cabeza; 
@@ -186,7 +185,7 @@ void listar_y_hashear(const wstring& directorio, ListaEnlazada& lista) {
 
             // Calcular hash para el tamanio del archivo
             vector<uint8_t> entradaTamano(8); // Crear un vector de 8 bytes (64 bits) 
-            for (size_t i = 0; i < 8; ++i) {
+            for (size_t i = 0; i < 8; i++) {
 
                 entradaTamano[i] = (tamanioFile >> (i * 8)) & 0xFF; // Extraer byte por byte 
             }
